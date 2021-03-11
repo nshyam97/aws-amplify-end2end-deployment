@@ -4,7 +4,7 @@ This repository will act as documentation for myself as I deploy a project to AW
 
 ## The mission
 
-The mission was to deploy a front-end web application written in React Typescript which would collect data from the user, be sent to a machine learning algorithm which will return the prediction using the data inputted, and display this to the user. We also wanted to store the data inputted at the same time as inference was happening. We also needed a way to control who had access to this program.
+The mission was to deploy a front-end web application written in React Typescript which would collect data from the user, be sent to a machine learning algorithm which will return the prediction using the data inputted, and display this to the user. I also wanted to store the data inputted at the same time as inference was happening. I also needed a way to control who had access to this program.
 
 ## The solution
 
