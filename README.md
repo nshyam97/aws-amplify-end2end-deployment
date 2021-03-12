@@ -45,6 +45,10 @@ export default withAuthenticator(App);
 
 Once these are done make sure to commit your changes to GitHub and Amplify will rebuild your front-end and redeploy. If like me your build failed, then read on.
 
+## Build failed - related to amplify version
+
+If you got a build failing due to errors with amplify version, you may need to change the build settings within your Amplify app homepage. Under App Settings > Build Settings, there is a sub section called *Build image settings*. Click *Edit* and under *Live package updates* select Amplify and set it to *latest*. Redploy and this should fix this issue.
+
 ## Build failed - You do not have a role attached to your app
 
 I got this error when trying to deploy after setting up the backend. Turns out I need to create an Amplify service IAM role, the guide for which can be found [here](https://docs.aws.amazon.com/amplify/latest/userguide/how-to-service-role-amplify-console.html). Once I had done this, I had to redeploy the front-end and I was back up and running with Cognito Authentication.
@@ -54,6 +58,26 @@ I got this error when trying to deploy after setting up the backend. Turns out I
 Back to the original tutorial here, module 4 takes you through step by step as to how to create your database and your API to access it. When creating your API it will prompt you to create the schema and then once completed will create all the boiler plate code for you. The tutorial also provides React JS code for adding and listing all the elements from the database which you can amend for your own purposes. If you want to change the schema after the fact, navigate to your app folder and open the `schema.graphql` file under `/backend/api/<name of app>/`. Once you have changed the schema, you must run `amplify push` to make the changes to the backend and update the boiler plate code. You must then commit and push your work to GitHub to change the front-end work to reflect the new backend changes.
 
 You can check what has been stored to the database by accessing DynamoDB in AWS where there should be a single table with items inside.
+
+I have to secure this GraphQL API as well so that not anyone can create, delete or access the datastore. I secured this using the Cognito User Pool I created earlier and for this I needed to install the AWS AppSync SDK. You can install this SDK using `npm install --save aws-appsync`. We then need to add some code to get the JWT to send in our authorization header.
+
+```
+import AWSAppSyncClient, { AUTH_TYPE } from 'aws-appsync';
+import awsconfig from './aws-exports';
+
+Amplify.configure(awsconfig);
+
+const client = new AWSAppSyncClient({
+  url: awsconfig.aws_appsync_graphqlEndpoint,
+  region: awsconfig.aws_appsync_region,
+  auth: {
+    type: AUTH_TYPE.AMAZON_COGNITO_USER_POOLS,
+    jwtToken: async () => (await Auth.currentSession()).getIdToken().getJwtToken(),
+  },
+});
+```
+
+This will get the JWT and set out authentication type to use Cognito User Pool. We also need to change 2 more files to reflect these changes, `aws-export.js` and `backend-config.json`. In `aws-export.js`, the `"aws_appsync_authenticationType"` field is populated with `API_KEY` and we need to change this to `AMAZON_COGNITO_USER_POOLS`. We need to add the same thing to `backend-config.json` for the `authenticationType` field under `defaultAuthentication`.
 
 The tutorial carries on here to add S3 storage but for my purposes I did not need this.
 
