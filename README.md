@@ -14,44 +14,82 @@ I decided on using AWS Amplify as the way to begin this. It allowed me to host t
 
 For the initial start of this guide, I will be following the tutorial accessible [here](https://aws.amazon.com/getting-started/hands-on/build-react-app-amplify-graphql/). Module 1 of this tutorial works without any hitches and the screenshots are as expected. This will connect Amplify front-end hosting to your (public) GitHub repository and specific branch and will tool up the CI/CD for you so that whenever you push changes to this repo and branch, it will re-deploy your front-end.
 
-# Part 2 - Setting up Amplify CLI and backend environment
+# Part 2 - Setting up Amplify CLI backend environment
 
-A prequisite to this section, **make sure you have a Chromium based browser as your default browser**.
+Module 2 in this tutorial works for new projects but is a real issue when trying to import auth rather than adding auth using the amplify CLI. Once you have installed the Amplify CLI, run `amplify configure`. Follow the steps to create the IAM user and note the ID and key. The tutuorial takes you through creating the backend from the Amplify website. This I found, caused many issue when I wanted to add my pre-made cognito user pools. For this, we need the amplify appId and the CLI. Navigate to your frontend amplify homepage and select **General** under App Settings in the sidebar. Under App ARN you will find your ARN, the appId is the string after the last forward slash of this ARN. Copy this.
 
-Module 2 in this tutorial is for the most part fine. It will walk you through installing the Amplify CLI (which you do realistically need) on your local machine. Make sure you remember to run `amplify configure` to make sure you can run the next commands. Once your CLI is configured on your local machine you need to head back to your Amplify App page and start your backend environment. This will take a couple minutes. Once this is done, and this is important: **click Open admin UI**. You will then need to return to your terminal window and type in the following command: `amplify pull --appId <given-app-id> --envName staging`. This will connect your app to the just configured backend environment. This command will open a browser tab asking for confirmation. For reasons beyond my cursory knowledge, this confirmation doesn't work in [Safari](https://github.com/aws-amplify/amplify-adminui/issues/84#issuecomment-775399802). **Do not forget to run `amplify push` once you have completed this**
+Navigate back to your Amplify CLI and type `amplify init --appId <appId>`. This will configure the application backend from your CLI and make it possible to import auth. We will finish this in the next section so don't commit or push anything yet.
 
-# Part 3 - Setting up user authentication
+# Part 3 - Setting up user authentication and completing backend
 
-This is where I start diverging away from the tutorial. The tutorial walks you through the Amplify CLI setup for adding Cognito to the application which is great for getting to grips with but lacks in-depth manual configuration as to how you want people to sign in and sign up. For my uses, I wanted specific options for signing users up and therefore creating my own Cognito User Pool and connecting it to my current Amplify front-end was the easiest solution. For this I used another [tutorial](https://aws.amazon.com/blogs/mobile/use-existing-cognito-resources-for-your-amplify-api-storage-and-more/). The first part of this tutorial walks you through how to create a User Pool and Identity Pool and once you have done this, returning back to the Amplify CLI, and running `amplify import auth` will allow you to connect your app to your customised Cognito setup. When you run this command, make sure you select *Cognito User Pool only* and when prompted, select the the app client with a client secret as your *Native app client*. Again, run `amplify push` to push these changes to your backend and when you return to your Amplify app page, you should see Authentication under your backend environments.
+Once you have performed the `amplify init` command, we can import auth. Make sure you have an existing user pool ready to import. I used this [tutorial](https://aws.amazon.com/blogs/mobile/use-existing-cognito-resources-for-your-amplify-api-storage-and-more/) to create my user pool and federated identities. Once you have created the user pools and federated identity, type `amplify import auth` into the CLI. In the following options, select *Cognito User Pool only* and when prompted, select the app client with a client secret as your *Native app client*. And that's cognito imported locally, finish this process by pushing your changes using `amplify push --y`. Heading back to the original tutorial and [module 3](https://aws.amazon.com/getting-started/hands-on/build-react-app-amplify-graphql/module-three/), install the amplify libraries using `npm install aws-amplify @aws-amplify/ui-react` and add the react code to your application. In case this tutorial disappears sometime in the future the code is shown here:
 
-I am using the hosted UI as Cognito makes it very hard to detach the authentication logic from the UI it has built and the easiest way is to just use the hosted UI. To actually use the hosted UI, you will need to add some code to your React application.
-
-In index<span>.<span>js add the following lines of code at the top under your import statements:
+*index.js*
 ```
 import Amplify from 'aws-amplify';
 import config from './aws-exports';
 Amplify.configure(config);
 ```
-In App<span>.<span>js you need to add the following imports:
-```
-import { withAuthenticator, AmplifySignOut } from '@aws-amplify/ui-react';
-```
-`AmplifySignOut` allows you to add a sign out button and is just a normal HTML tag `<AmplifySignOut />` and can be placed where you like.
 
-`withAuthenticator` needs to surround your app export at the bottom of App<span>.<span>js like so
+*App.js*
 ```
+import React from 'react';
+import logo from './logo.svg';
+import './App.css';
+import { withAuthenticator, AmplifySignOut } from '@aws-amplify/ui-react'
+
+function App() {
+  return (
+    <div className="App">
+      <header>
+        <img src={logo} className="App-logo" alt="logo" />
+        <h1>We now have Auth!</h1>
+      </header>
+      <AmplifySignOut />
+    </div>
+  );
+}
+
 export default withAuthenticator(App);
 ```
+**Note: Do not push your git changes yet because this will fail your build.**
 
-Once these are done make sure to commit your changes to GitHub and Amplify will rebuild your front-end and redeploy. If like me your build failed, then read on.
+Because we added the backend separately, we need to update our build script to take into account our newly created backend and connect it to our frontend. Navigate to **Build Settings** in the sidebar under App settings and edit the amplify.yml to the following (also available on the tutorial):
 
-## Build failed - related to amplify version
+*amplify.yml*
+```
+version: 1
+backend:
+  phases:
+    build:
+      commands:
+        - '# Execute Amplify CLI with the helper script'
+        - amplifyPush --simple
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - yarn install
+    build:
+      commands:
+        - yarn run build
+  artifacts:
+    baseDirectory: build
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+```
+Navigate back to your frontend page and click the **Edit** button and connect your frontend to your backend you created.
 
-If you got a build failing due to errors with amplify version, you may need to change the build settings within your Amplify app homepage. Under App Settings > Build Settings, there is a sub section called *Build image settings*. Click *Edit* and under *Live package updates* select Amplify and set it to *latest*. Redploy and this should fix this issue.
+![connect to backend!](/images/connect.png)
 
-## Build failed - You do not have a role attached to your app
+Again due to creating our backend separately and importing auth, our amplify environment variables have not been added to support auth. We need to do this manually. Navigate to **Environment variables** in the sidebar under App settings and click *Manage variables*. We need to add 3 variables for auth to build successfully: **AMPLIFY_USERPOOL_ID**, **AMPLIFY_WEBCLIENT_ID**, and **AMPLIFY_NATIVECLIENT_ID**. When we configured and initialised amplify in our project in the previous step, you will see that they added a new **amplify** folder to your application directory. You will find all of these variables under the *team-provider-info.json* file. Copy the values into the environment variables for the corresponding variables and save.
 
-I got this error when trying to deploy after setting up the backend. Turns out I need to create an Amplify service IAM role, the guide for which can be found [here](https://docs.aws.amazon.com/amplify/latest/userguide/how-to-service-role-amplify-console.html). Once I had done this, I had to redeploy the front-end and I was back up and running with Cognito Authentication.
+One more step before we cna push our git changes. We will need to add a service role to our amplify app to make sure the backend resources can be accessed. The following [tutorial](https://docs.aws.amazon.com/amplify/latest/userguide/how-to-service-role-amplify-console.html) walks you through the entire process including adding it to your amplify project.
+
+You can now git push your changes and this will trigger a new amplify build. Once completed this should result in your application having auth with the specific user pool you created.
 
 # Part 4 - Adding a datastore and API
 
